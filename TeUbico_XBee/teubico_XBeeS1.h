@@ -32,18 +32,24 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define RSP_LLSB 0x02
 #define RSP_RDDATA 0x03
 
-class XBeeSeries1 {
+// Modem status variables
+#define TX_STAT_SUCCESS 0
+#define TX_STAT_NOACK 1
+#define TX_STAT_CCAFAIL 2
+#define TX_STAT_PURGED 3
+
+class XBeeS1 {
 public:
-  XBeeSeries1(HardwareSerial *serial);
+  XBeeS1(HardwareSerial *serial);
   bool init();
   void listen();
-  void sendTo64(uint32_t addr_high, uint32_t addr_low, char* data);
-  void sendTo16(uint16_t addr,char* data);
+  uint8_t sendTo64(uint32_t addr_high, uint32_t addr_low, char* data);
+  uint8_t sendTo16(uint16_t addr,char* data);
   void onFrameReceived(void (*handler)(uint8_t *dataFrame, uint16_t dataSize));
   void onTXStatus(void (*handler)(uint8_t seq, uint8_t code));
-  void onReceivePacket16(void (*handler)(uint16_t addr, uint8_t *data, uint16_t dataSize));
-  void onReceivePacket64(void (*handler)(uint32_t addr_high,uint32_t addr_low, uint8_t *data, uint16_t dataSize));
-  void onReceivePacket(void (*handler)(uint8_t *data, uint16_t dataSize));
+  void onReceiveData16(void (*handler)(uint16_t addr, uint8_t *data, uint16_t dataSize));
+  void onReceiveData64(void (*handler)(uint32_t addr_high,uint32_t addr_low, uint8_t *data, uint16_t dataSize));
+  void onReceiveData(void (*handler)(uint8_t *data, uint16_t dataSize));
 private:  
   uint16_t rcvSize;
   uint8_t *rcvBuffer;

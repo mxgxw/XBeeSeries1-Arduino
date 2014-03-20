@@ -1,10 +1,10 @@
 #include <HardwareSerial.h>
 #include "inttypes.h"
 #include "string.h"
-#include "LibXBee.h"
+#include "teubico_XBeeS1.h"
 #include "utils.h"
 
-XBeeSeries1 * myXBee;
+XBeeS1 * myXBee;
 
 long lastMessage = 0;
 
@@ -14,10 +14,10 @@ void setup() {
   
   
   Serial.begin(9600);
-  myXBee = new XBeeSeries1(&Serial);
+  myXBee = new XBeeS1(&Serial);
   myXBee->onTXStatus(txStatusReceived);
-  myXBee->onRXPacket64(dataReceived64);
-  myXBee->onRXPacket16(dataReceived16);
+  myXBee->onReceiveData64(dataReceived64);
+  myXBee->onReceiveData16(dataReceived16);
   myXBee->init();
   
 }
