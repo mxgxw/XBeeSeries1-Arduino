@@ -32,15 +32,18 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 class XBeeSeries1 {
 public:
-  uint8_t rcvSize;
-  uint8_t *rcvBuffer;
   XBeeSeries1(HardwareSerial *serial);
   bool init();
   void listen();
   void sendTo64(uint32_t addr_high, uint32_t addr_low, char* data);
   void sendTo16(uint16_t addr,char* data);
-  void onFrameReceived(void (*handler)());
+  void onFrameReceived(void (*handler)(uint8_t *dataFrame, uint16_t dataSize));
+  void onTXStatus(void (*handler)(uint8_t seq, uint8_t code));
+  void onRXPacket16(void (*handler)(uint16_t addr, uint8_t *data, uint16_t dataSize));
+  void onRXPacket64(void (*handler)(uint32_t addr_high,uint32_t addr_low, uint8_t *data, uint16_t dataSize));
 private:  
+  uint16_t rcvSize;
+  uint8_t *rcvBuffer;
   uint8_t seq;
   uint8_t xBeeStatus;
   char *buffer;
@@ -55,7 +58,10 @@ private:
   uint32_t lastSerialData;
   uint8_t readStatus;
   
-  void (*frameReceivedHandler)();
+  void (*frameReceivedHandler)(uint8_t *dataFrame, uint16_t dataSize);
+  void (*rx16Handler)(uint16_t addr, uint8_t *data, uint16_t dataSize);
+  void (*rx64Handler)(uint32_t addr_high,uint32_t addr_low, uint8_t *data, uint16_t dataSize);
+  void (*txStatHandler)(uint8_t seq, uint8_t code);
   
   // Serial data processing functions
   bool waitFor(char *response, void (*command)());
@@ -69,5 +75,7 @@ private:
   HardwareSerial * _HardSerial;
   
   bool escapeNext;
+  
+  void processFrame();
 };
 

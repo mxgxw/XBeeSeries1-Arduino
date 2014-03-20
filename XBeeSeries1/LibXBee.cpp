@@ -47,6 +47,8 @@ XBeeSeries1::XBeeSeries1(HardwareSerial *serial) {
   this->readStatus = RSP_WAIT;
 
   this->frameReceivedHandler = NULL;
+  this->rx16Handler = NULL;
+  this->rx64Handler = NULL;
   
   this->_HardSerial = serial;
   
@@ -289,8 +291,9 @@ void XBeeSeries1::listen() {
           this->checkSum = 0xFF & this->checkSum;
           if(this->checkSum==0xFF) {
             if(this->frameReceivedHandler!=NULL) {
-              this->frameReceivedHandler();
+              this->frameReceivedHandler(this->rcvBuffer,this->rcvSize);
             }
+            this->processFrame();
           }
           this->readStatus = RSP_WAIT; 
         }
@@ -299,8 +302,19 @@ void XBeeSeries1::listen() {
   }
 }
 
-void XBeeSeries1::onFrameReceived(void (*handler)()) {
+void XBeeSeries1::onFrameReceived(void (*handler)(uint8_t *dataFrame, uint16_t dataSize)) {
   this->frameReceivedHandler = handler;
+}
+
+void XBeeSeries1::onRXPacket16(void (*handler)(uint16_t addr, uint8_t *data, uint16_t dataSize)) {
+  this->rx16Handler = handler;
+}
+void XBeeSeries1::onRXPacket64(void (*handler)(uint32_t addr_high,uint32_t addr_low, uint8_t *data, uint16_t dataSize)) {
+  this->rx64Handler = handler;
+}
+
+void XBeeSeries1::onTXStatus(void (*handler)(uint8_t seq, uint8_t code)) {
+  this->txStatHandler = handler;
 }
 
 
@@ -376,5 +390,56 @@ void XBeeSeries1::escapeAndWrite(uint8_t &data) {
     this->_HardSerial->write(data^0x20);
   } else {
     this->_HardSerial->write(data);
+  }
+}
+
+void XBeeSeries1::processFrame() {
+  if(this->rcvSize==0) {
+    return;
+  }
+  
+  int i;
+  uint16_t addr;
+  uint32_t addr_high;
+  uint32_t addr_low;
+  switch(this->rcvBuffer[0]) {
+    case 0x88:
+      // Process AT Command Response
+      break;
+    case 0x89:
+        if(this->txStatHandler!=NULL) {
+          this->txStatHandler(this->rcvBuffer[1], this->rcvBuffer[2]);
+        }
+      break;
+    case 0x8A:
+        // Process status message
+      break;
+    case 0x80:
+          addr_high = rcvBuffer[1]<<24;
+          addr_high |= rcvBuffer[2]<<16;
+          addr_high |= rcvBuffer[3]<<8;
+          addr_high |= rcvBuffer[4];
+          
+          addr_low = rcvBuffer[5]<<24;
+          addr_low |= rcvBuffer[6]<<16;
+          addr_low |= rcvBuffer[7]<<8;
+          addr_low |= rcvBuffer[8];
+          
+          if(this->rx64Handler!=NULL) {
+            this->rx64Handler(addr_high, addr_low, (uint8_t*)(this->rcvBuffer+11), this->rcvSize-11);
+          }
+      break;
+    case 0x81:
+          // Process data from 16bit address
+          addr = rcvBuffer[1]<<8;
+          addr |= rcvBuffer[2];
+          
+          if(this->rx16Handler!=NULL) {
+            this->rx16Handler(addr, (uint8_t*)(this->rcvBuffer+5), this->rcvSize-5);
+          }
+      break;
+    case 0x97:
+        // TO DO: call process response handler
+      break;
   }
 }
