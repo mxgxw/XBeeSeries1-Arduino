@@ -2,7 +2,7 @@
 #include "inttypes.h"
 #include "string.h"
 #include "teubico_XBeeS1.h"
-#include "utils.h"
+#include "teubico_utils.h"
 
 XBeeS1 * myXBee;
 
