@@ -20,7 +20,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <Arduino.h>
 #include "inttypes.h"
 
-#include "LibXBee.h"
+#include "teubico_XBeeS1.h"
 
 XBeeSeries1::XBeeSeries1(HardwareSerial *serial) {
   this->seq = 0;
