@@ -152,7 +152,7 @@ void XBeeSeries1::sendTo64(uint32_t addr_high, uint32_t addr_low, char* data) {
     return;
   }
   
-  uint16_t mSize = strlen(data)+14;
+  uint16_t mSize = strlen(data)+11;
   
   uint32_t Sum = 0;
   byte chkSum = 0;
@@ -166,8 +166,8 @@ void XBeeSeries1::sendTo64(uint32_t addr_high, uint32_t addr_low, char* data) {
   tmpData = mSize & 0xFF;
   this->escapeAndWrite(tmpData);
   
-  // Frame
-  tmpData = 0x10;
+  // API Identifier
+  tmpData = 0x00;
   this->escapeAndWrite(tmpData);
   Sum += tmpData;
   
@@ -209,21 +209,11 @@ void XBeeSeries1::sendTo64(uint32_t addr_high, uint32_t addr_low, char* data) {
   this->escapeAndWrite(tmpData);
   Sum += tmpData;
 
-  tmpData = 0xFF;
-  this->escapeAndWrite(tmpData);
-  Sum += tmpData;
-  tmpData = 0xFE;
-  this->escapeAndWrite(tmpData);
-  Sum += tmpData;
-  
+  // Options
   tmpData = 0x00;
   this->escapeAndWrite(tmpData);
   Sum += tmpData;
-  
-  tmpData = 0x30;
-  this->escapeAndWrite(tmpData);
-  Sum += tmpData;
-  
+    
   for(int i=0;i<strlen(data);i++){
     tmpData = (uint8_t)data[i];
     this->escapeAndWrite(tmpData);
@@ -404,7 +394,7 @@ void XBeeSeries1::processFrame() {
   uint32_t addr_low;
   switch(this->rcvBuffer[0]) {
     case 0x88:
-      // Process AT Command Response
+      // TO DO: Process AT Command Response
       break;
     case 0x89:
         if(this->txStatHandler!=NULL) {
@@ -412,7 +402,7 @@ void XBeeSeries1::processFrame() {
         }
       break;
     case 0x8A:
-        // Process status message
+        // TO DO: Process status message
       break;
     case 0x80:
           addr_high = rcvBuffer[1]<<24;
