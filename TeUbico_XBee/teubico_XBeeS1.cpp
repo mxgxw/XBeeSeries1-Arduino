@@ -90,6 +90,10 @@ bool XBeeS1::init() {
   return (this->xBeeStatus==API_MODE2);
 }
 
+uint8_t XBeeS1::broadcast(char* data) {
+  return this->sendTo16(0xFFFF, data);
+}
+
 uint8_t XBeeS1::sendTo16(uint16_t addr, char* data) { 
   // Process Frames only in API Mode 2
   if(this->xBeeStatus!=API_MODE2) {

@@ -43,6 +43,7 @@ public:
   XBeeS1(HardwareSerial *serial);
   bool init();
   void listen();
+  uint8_t broadcast(char* data);
   uint8_t sendTo64(uint32_t addr_high, uint32_t addr_low, char* data);
   uint8_t sendTo16(uint16_t addr,char* data);
   void onFrameReceived(void (*handler)(uint8_t *dataFrame, uint16_t dataSize));
