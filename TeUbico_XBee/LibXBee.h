@@ -16,6 +16,9 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 **************************************************************/
+#ifndef TeUbico_XBeeS1
+#define TeUbico_XBeeS1
+
 #define BUFFSIZE 128
 #define WAIT_TIMEOUT 10000
 
@@ -29,7 +32,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define RSP_LLSB 0x02
 #define RSP_RDDATA 0x03
 
-
 class XBeeSeries1 {
 public:
   XBeeSeries1(HardwareSerial *serial);
@@ -39,8 +41,9 @@ public:
   void sendTo16(uint16_t addr,char* data);
   void onFrameReceived(void (*handler)(uint8_t *dataFrame, uint16_t dataSize));
   void onTXStatus(void (*handler)(uint8_t seq, uint8_t code));
-  void onRXPacket16(void (*handler)(uint16_t addr, uint8_t *data, uint16_t dataSize));
-  void onRXPacket64(void (*handler)(uint32_t addr_high,uint32_t addr_low, uint8_t *data, uint16_t dataSize));
+  void onReceivePacket16(void (*handler)(uint16_t addr, uint8_t *data, uint16_t dataSize));
+  void onReceivePacket64(void (*handler)(uint32_t addr_high,uint32_t addr_low, uint8_t *data, uint16_t dataSize));
+  void onReceivePacket(void (*handler)(uint8_t *data, uint16_t dataSize));
 private:  
   uint16_t rcvSize;
   uint8_t *rcvBuffer;
@@ -61,6 +64,7 @@ private:
   void (*frameReceivedHandler)(uint8_t *dataFrame, uint16_t dataSize);
   void (*rx16Handler)(uint16_t addr, uint8_t *data, uint16_t dataSize);
   void (*rx64Handler)(uint32_t addr_high,uint32_t addr_low, uint8_t *data, uint16_t dataSize);
+  void (*rxHandler)(uint8_t *data, uint16_t dataSize);
   void (*txStatHandler)(uint8_t seq, uint8_t code);
   
   // Serial data processing functions
@@ -78,4 +82,4 @@ private:
   
   void processFrame();
 };
-
+#endif
