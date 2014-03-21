@@ -61,7 +61,7 @@ bool XBeeS1::init() {
   
   bool confirmATAP2 = false;
   bool confirmATCN = false;
-  
+   
   while(waitForInit) {
     switch(this->xBeeStatus) {
       case WAIT_MODEM:
@@ -229,7 +229,8 @@ uint8_t XBeeS1::sendTo64(uint32_t addr_high, uint32_t addr_low, char* data) {
   
   chkSum = 0xFF - (Sum&0xFF);
   this->escapeAndWrite(chkSum);
-
+  
+  this->_HardSerial->flush();
   return this->seq;
 }
 
@@ -246,14 +247,16 @@ void XBeeS1::listen() {
       this->d = this->d^0x20;
       this->escapeNext = false;
     }
-    
+    int i;   
     switch(this->readStatus) {
       case RSP_WAIT:
         if(this->d==0x7E) {
           this->readStatus = RSP_LMSB;
           this->checkSum = 0; // rESET CHECKSUM
-          if(this->rcvSize>0) {
-            free(this->rcvBuffer); // Free last buffer
+          if(this->rcvSize>0) { // Clear buffer
+            for(int i=0;i<BUFFSIZE;i++) {
+              this->rcvBuffer[i] = 0;
+            }
             this->rcvSize = 0;
           }
         }
@@ -270,7 +273,7 @@ void XBeeS1::listen() {
         this->packetSize = this->packetSize | this->lLSB;
         
         if(this->packetSize>0) {
-          this->rcvBuffer = (byte*)malloc(this->packetSize);
+          //this->rcvBuffer = (byte*)malloc(this->packetSize);
         } else {
           // Critical error, size cannot be 0
           // reset machine status to RSP_WAIT
