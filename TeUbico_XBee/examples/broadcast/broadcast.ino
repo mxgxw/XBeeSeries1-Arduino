@@ -1,69 +1,50 @@
-#include <HardwareSerial.h>
-#include "inttypes.h"
-#include "string.h"
-#include "teubico_XBeeS1.h"
-#include "teubico_utils.h"
+#include <teubico_XBeeS1.h>
+#include <teubico_utils.h>
 
 XBeeS1 * myXBee;
 
+// Variable for pseudo-timer
 long lastMessage = 0;
 
 void setup() {
-  pinMode(13,OUTPUT);
-  digitalWrite(13, LOW);
-  
   
   Serial.begin(9600);
   myXBee = new XBeeS1(&Serial);
   myXBee->onTXStatus(txStatusReceived);
-  myXBee->onReceiveData64(dataReceived64);
-  myXBee->onReceiveData16(dataReceived16);
   myXBee->init();
   
 }
 
 void loop() {
+  // Listen for new frames
   myXBee->listen();
   
+  // Sends a broadcast every second
   if(checkTimeout(lastMessage,1000)) {
-    //myXBee->sendTo64(0x00,0xFFFF,"Hello World\r\n");
+    myXBee->sendTo16(0xFFFF,"Hello World\r\n");
     lastMessage = millis();
   }
 }
 
 void txStatusReceived(uint8_t seq, uint8_t statusCode) {
+  // Process the status response
   Serial.print("Sequence number: ");
   Serial.println(seq, HEX);
   Serial.print("Status: ");
+  
+  // Prints the message status
   switch(statusCode) {
-    case 0:
+    case TX_STAT_SUCCESS:
       Serial.println("Success");
       break;
-    case 1:
+    case TX_STAT_NOACK:
       Serial.println("No ACK (Acknowledgement) received");
       break;
-    case 2:
+    case TX_STAT_CCAFAIL:
       Serial.println("CCA failure");
       break;
-    case 3:
+    case TX_STAT_PURGED:
       Serial.println("Purged");
       break;
   }
 }
-
-void dataReceived64(uint32_t addr_high, uint32_t addr_low, uint8_t *data, uint16_t dataSize) {
-  Serial.print("Data Received: ");
-  for(int i=0;i<dataSize;i++) {
-    Serial.write(data[i]);
-  }
-}
-
-void dataReceived16(uint16_t addr, uint8_t *data, uint16_t dataSize) {
-  Serial.print("Data Received: ");
-  for(int i=0;i<dataSize;i++) {
-    Serial.write(data[i]);
-  }
-}
-
-
-

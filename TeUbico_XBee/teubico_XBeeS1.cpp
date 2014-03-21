@@ -305,14 +305,14 @@ void XBeeS1::onFrameReceived(void (*handler)(uint8_t *dataFrame, uint16_t dataSi
   this->frameReceivedHandler = handler;
 }
 
-void XBeeS1::onReceiveData16(void (*handler)(uint16_t addr, uint8_t *data, uint16_t dataSize)) {
+void XBeeS1::onDataReceived16(void (*handler)(uint16_t addr, uint8_t *data, uint16_t dataSize)) {
   this->rx16Handler = handler;
 }
-void XBeeS1::onReceiveData64(void (*handler)(uint32_t addr_high,uint32_t addr_low, uint8_t *data, uint16_t dataSize)) {
+void XBeeS1::onDataReceived64(void (*handler)(uint32_t addr_high,uint32_t addr_low, uint8_t *data, uint16_t dataSize)) {
   this->rx64Handler = handler;
 }
 
-void XBeeS1::onReceiveData(void (*handler)(uint8_t *data, uint16_t dataSize)) {
+void XBeeS1::onDataReceived(void (*handler)(uint8_t *data, uint16_t dataSize)) {
   this->rxHandler = handler;
 }
 

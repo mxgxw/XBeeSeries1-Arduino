@@ -19,6 +19,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #ifndef TeUbico_XBeeS1
 #define TeUbico_XBeeS1
 
+#include <HardwareSerial.h>
+#include "inttypes.h"
+#include "string.h"
+
 #define BUFFSIZE 128
 #define WAIT_TIMEOUT 10000
 
@@ -48,9 +52,9 @@ public:
   uint8_t sendTo16(uint16_t addr,char* data);
   void onFrameReceived(void (*handler)(uint8_t *dataFrame, uint16_t dataSize));
   void onTXStatus(void (*handler)(uint8_t seq, uint8_t code));
-  void onReceiveData16(void (*handler)(uint16_t addr, uint8_t *data, uint16_t dataSize));
-  void onReceiveData64(void (*handler)(uint32_t addr_high,uint32_t addr_low, uint8_t *data, uint16_t dataSize));
-  void onReceiveData(void (*handler)(uint8_t *data, uint16_t dataSize));
+  void onDataReceived16(void (*handler)(uint16_t addr, uint8_t *data, uint16_t dataSize));
+  void onDataReceived64(void (*handler)(uint32_t addr_high,uint32_t addr_low, uint8_t *data, uint16_t dataSize));
+  void onDataReceived(void (*handler)(uint8_t *data, uint16_t dataSize));
 private:  
   uint16_t rcvSize;
   uint8_t *rcvBuffer;
