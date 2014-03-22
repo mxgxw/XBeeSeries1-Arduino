@@ -16,8 +16,8 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 **************************************************************/
-#ifndef TeUbico_XBeeS1
-#define TeUbico_XBeeS1
+#ifndef TeUbico_XBeeSeries1
+#define TeUbico_XBeeSeries1
 
 #include <HardwareSerial.h>
 #include "inttypes.h"
@@ -42,20 +42,25 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define TX_STAT_CCAFAIL 2
 #define TX_STAT_PURGED 3
 
-class XBeeS1 {
+class XBeeSeries1 {
 public:
-  XBeeS1(HardwareSerial *serial);
+  XBeeSeries1(HardwareSerial *serial, uint16_t my_addr = 0);
   bool init();
   void listen();
   uint8_t broadcast(char* data);
-  uint8_t sendTo64(uint32_t addr_high, uint32_t addr_low, char* data);
-  uint8_t sendTo16(uint16_t addr,char* data);
+  void sendTo64(uint32_t addr_high, uint32_t addr_low, char* data);
+  void sendTo16(uint16_t addr,char* data);
   void onFrameReceived(void (*handler)(uint8_t *dataFrame, uint16_t dataSize));
   void onTXStatus(void (*handler)(uint8_t seq, uint8_t code));
   void onDataReceived16(void (*handler)(uint16_t addr, uint8_t *data, uint16_t dataSize));
   void onDataReceived64(void (*handler)(uint32_t addr_high,uint32_t addr_low, uint8_t *data, uint16_t dataSize));
   void onDataReceived(void (*handler)(uint8_t *data, uint16_t dataSize));
+  
+  HardwareSerial * getHardwareSerial();
 private:  
+  uint16_t self_addr;
+  uint8_t _sendTo64(uint32_t addr_high, uint32_t addr_low, char* data);
+  uint8_t _sendTo16(uint16_t addr,char* data);
   uint16_t rcvSize;
   uint8_t *rcvBuffer;
   uint8_t seq;
@@ -92,5 +97,15 @@ private:
   bool escapeNext;
   
   void processFrame();
+  
+  bool queued16;
+  bool queued64;
+  
+  uint32_t queuedAddrHigh;
+  uint32_t queuedAddrLow;
+  uint16_t queuedAddr;
+  char *queuedString64;
+  char *queuedString16;
+  
 };
 #endif

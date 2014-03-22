@@ -20,12 +20,15 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <Arduino.h>
 #include "inttypes.h"
 
-#include "teubico_XBeeS1.h"
+#include "teubico_XBeeSeries1.h"
 
-XBeeS1::XBeeS1(HardwareSerial *serial) {
+char convBuffer[32];
+
+XBeeSeries1::XBeeSeries1(HardwareSerial *serial,uint16_t my_addr) {
+  this->self_addr = my_addr;
   this->seq = 0;
   this->rcvSize = 0;
-  this->rcvBuffer = NULL;
+  this->rcvBuffer = (uint8_t*)malloc(BUFFSIZE);
 
   this->xBeeStatus = WAIT_MODEM;
   this->buffer = (char*)malloc(BUFFSIZE);
@@ -54,13 +57,25 @@ XBeeS1::XBeeS1(HardwareSerial *serial) {
   this->_HardSerial = serial;
   
   this->escapeNext = false;
+  
+  
+  this->queued16 = false;
+  this->queued64 = false;
+  
+  this->queuedAddrHigh = 0;
+  this->queuedAddrLow = 0;
+  this->queuedAddr = 0;
+  this->queuedString64 = NULL;
+  this->queuedString16 = NULL;
 }
 
-bool XBeeS1::init() {
+bool XBeeSeries1::init() {
   bool waitForInit = true;
   
   bool confirmATAP2 = false;
   bool confirmATCN = false;
+  bool confirmSelfAddr = false;
+  uint8_t conv_size = 0;
    
   while(waitForInit) {
     switch(this->xBeeStatus) {
@@ -74,10 +89,15 @@ bool XBeeS1::init() {
       
         this->_HardSerial->write("ATAP2\r\n");
         confirmATAP2 = this->waitFor("OK");
+	this->_HardSerial->write("ATMY");
+	conv_size = sprintf(convBuffer,"%x",this->self_addr);
+	this->_HardSerial->write((uint8_t*)convBuffer, conv_size);
+	this->_HardSerial->write("\r\n");
+        confirmSelfAddr = this->waitFor("OK");
         this->_HardSerial->write("ATCN\r\n");
         confirmATCN = this->waitFor("OK");
         
-        if(confirmATAP2 && confirmATCN) {
+        if(confirmATAP2 && confirmATCN && confirmSelfAddr) {
           waitForInit = false;
           this->xBeeStatus = API_MODE2;
         } else {
@@ -90,11 +110,21 @@ bool XBeeS1::init() {
   return (this->xBeeStatus==API_MODE2);
 }
 
-uint8_t XBeeS1::broadcast(char* data) {
-  return this->sendTo16(0xFFFF, data);
+uint8_t XBeeSeries1::broadcast(char* data) {
+  this->sendTo16(0xFFFF, data);
 }
 
-uint8_t XBeeS1::sendTo16(uint16_t addr, char* data) { 
+void XBeeSeries1::sendTo16(uint16_t addr, char* data) { 
+  if(this->readStatus== RSP_WAIT) {
+    this->_sendTo16(addr, data);
+  } else {
+    this->queued16 = true;
+    this->queuedAddr = addr;
+    this->queuedString16 = data;
+  }
+}
+
+uint8_t XBeeSeries1::_sendTo16(uint16_t addr, char* data) { 
   // Process Frames only in API Mode 2
   if(this->xBeeStatus!=API_MODE2) {
     return 0;
@@ -152,7 +182,18 @@ uint8_t XBeeS1::sendTo16(uint16_t addr, char* data) {
   return this->seq;
 }
 
-uint8_t XBeeS1::sendTo64(uint32_t addr_high, uint32_t addr_low, char* data) {
+void XBeeSeries1::sendTo64(uint32_t addr_high, uint32_t addr_low, char* data) { 
+  if(this->readStatus== RSP_WAIT) {
+    this->_sendTo64(addr_high,addr_low, data);
+  } else {
+    this->queued64 = true;
+    this->queuedAddrHigh = addr_high;
+    this->queuedAddrLow = addr_low;
+    this->queuedString64 = data;
+  }
+}
+
+uint8_t XBeeSeries1::_sendTo64(uint32_t addr_high, uint32_t addr_low, char* data) {
   
   // Process Frames only in API Mode 2
   if(this->xBeeStatus!=API_MODE2) {
@@ -234,7 +275,7 @@ uint8_t XBeeS1::sendTo64(uint32_t addr_high, uint32_t addr_low, char* data) {
   return this->seq;
 }
 
-void XBeeS1::listen() {
+void XBeeSeries1::listen() {
   if(this->_HardSerial->available() && (this->xBeeStatus==API_MODE2)) {
     this->d = this->_HardSerial->read();
     
@@ -253,19 +294,15 @@ void XBeeS1::listen() {
         if(this->d==0x7E) {
           this->readStatus = RSP_LMSB;
           this->checkSum = 0; // rESET CHECKSUM
-          if(this->rcvSize>0) { // Clear buffer
-            for(int i=0;i<BUFFSIZE;i++) {
-              this->rcvBuffer[i] = 0;
-            }
-            this->rcvSize = 0;
-          }
         }
         break;
       case RSP_LMSB:
+
         this->lMSB = this->d;
         this->readStatus = RSP_LLSB;
         break;
       case RSP_LLSB:
+
         this->lLSB = this->d;
         
         this->packetSize = this->lMSB;
@@ -273,7 +310,10 @@ void XBeeS1::listen() {
         this->packetSize = this->packetSize | this->lLSB;
         
         if(this->packetSize>0) {
-          //this->rcvBuffer = (byte*)malloc(this->packetSize);
+          // Free previous buffer
+          free(this->rcvBuffer);
+          this->rcvBuffer = (byte*)malloc(this->packetSize);
+          this->rcvSize = 0;
         } else {
           // Critical error, size cannot be 0
           // reset machine status to RSP_WAIT
@@ -301,30 +341,44 @@ void XBeeS1::listen() {
         }
         break;
     }
+  } else if(this->readStatus==RSP_WAIT) {
+    if(this->queued16) {
+      this->_sendTo16(this->queuedAddr, this->queuedString16);
+      this->queued16 = false;
+      this->queuedAddr = 0;
+      this->queuedString16 = NULL;
+    }
+    if(this->queued64) {
+      this->_sendTo64(this->queuedAddrHigh,this->queuedAddrLow, this->queuedString64);
+      this->queued64 = false;
+      this->queuedAddrHigh = 0;
+      this->queuedAddrLow = 0;
+      this->queuedString64 = NULL;
+    }
   }
 }
 
-void XBeeS1::onFrameReceived(void (*handler)(uint8_t *dataFrame, uint16_t dataSize)) {
+void XBeeSeries1::onFrameReceived(void (*handler)(uint8_t *dataFrame, uint16_t dataSize)) {
   this->frameReceivedHandler = handler;
 }
 
-void XBeeS1::onDataReceived16(void (*handler)(uint16_t addr, uint8_t *data, uint16_t dataSize)) {
+void XBeeSeries1::onDataReceived16(void (*handler)(uint16_t addr, uint8_t *data, uint16_t dataSize)) {
   this->rx16Handler = handler;
 }
-void XBeeS1::onDataReceived64(void (*handler)(uint32_t addr_high,uint32_t addr_low, uint8_t *data, uint16_t dataSize)) {
+void XBeeSeries1::onDataReceived64(void (*handler)(uint32_t addr_high,uint32_t addr_low, uint8_t *data, uint16_t dataSize)) {
   this->rx64Handler = handler;
 }
 
-void XBeeS1::onDataReceived(void (*handler)(uint8_t *data, uint16_t dataSize)) {
+void XBeeSeries1::onDataReceived(void (*handler)(uint8_t *data, uint16_t dataSize)) {
   this->rxHandler = handler;
 }
 
-void XBeeS1::onTXStatus(void (*handler)(uint8_t seq, uint8_t code)) {
+void XBeeSeries1::onTXStatus(void (*handler)(uint8_t seq, uint8_t code)) {
   this->txStatHandler = handler;
 }
 
 
-bool XBeeS1::waitFor(char *response, void (*command)()) {
+bool XBeeSeries1::waitFor(char *response, void (*command)()) {
   this->lastSerialData = millis();
   
   char c;
@@ -348,7 +402,7 @@ bool XBeeS1::waitFor(char *response, void (*command)()) {
   return responseFound;
 }
 
-bool XBeeS1::waitFor(char *response) {
+bool XBeeSeries1::waitFor(char *response) {
   this->lastSerialData = millis();
   
   boolean responseFound = false;
@@ -370,14 +424,14 @@ bool XBeeS1::waitFor(char *response) {
   return responseFound;
 }
 
-void XBeeS1::flush_buffer() {
+void XBeeSeries1::flush_buffer() {
   for(int j=0;j<=this->buffPos;j++) {
     this->buffer[j] = 0;
   }
   this->buffPos = 0;
 }
 
-void XBeeS1::append_buffer(char c) {
+void XBeeSeries1::append_buffer(char c) {
   if(this->buffPos<BUFFSIZE) {
     this->buffer[this->buffPos++] = c;
   } else {
@@ -385,7 +439,7 @@ void XBeeS1::append_buffer(char c) {
   }
 }
 
-void XBeeS1::escapeAndWrite(uint8_t &data) {
+void XBeeSeries1::escapeAndWrite(uint8_t &data) {
   if(
     data == 0x7E |
     data == 0x7D |
@@ -399,7 +453,7 @@ void XBeeS1::escapeAndWrite(uint8_t &data) {
   }
 }
 
-void XBeeS1::processFrame() {
+void XBeeSeries1::processFrame() {
   if(this->rcvSize==0) {
     return;
   }
@@ -439,10 +493,9 @@ void XBeeS1::processFrame() {
           }
       break;
     case 0x81:
+          addr |= rcvBuffer[3]<<8;
+          addr |= rcvBuffer[4];
           // Process data from 16bit address
-          addr = rcvBuffer[1]<<8;
-          addr |= rcvBuffer[2];
-          
           if(this->rx16Handler!=NULL) {
             this->rx16Handler(addr, (uint8_t*)(this->rcvBuffer+5), this->rcvSize-5);
           }
@@ -455,3 +508,4 @@ void XBeeS1::processFrame() {
       break;
   }
 }
+
