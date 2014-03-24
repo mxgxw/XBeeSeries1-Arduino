@@ -23,7 +23,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "inttypes.h"
 #include "string.h"
 
-#define BUFFSIZE 64
+#define BUFFSIZE 128
 #define WAIT_TIMEOUT 10000
 
 #define WAIT_MODEM 0x00

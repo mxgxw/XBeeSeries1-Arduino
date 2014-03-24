@@ -24,11 +24,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 char convBuffer[32];
 
-XBeeSeries1::XBeeSeries1(HardwareSerial *serial,uint16_t my_addr) {
+XBeeSeries1::XBeeSeries1(HardwareSerial &serial,uint16_t my_addr) {
   this->self_addr = my_addr;
   this->seq = 0;
   this->rcvSize = 0;
-  this->rcvBuffer = (uint8_t*)malloc(BUFFSIZE);
+  this->rcvBuffer = NULL;
 
   this->xBeeStatus = WAIT_MODEM;
   this->buffer = (char*)malloc(BUFFSIZE);
@@ -54,7 +54,7 @@ XBeeSeries1::XBeeSeries1(HardwareSerial *serial,uint16_t my_addr) {
   this->rx64Handler = NULL;
   this->rxHandler = NULL;
   
-  this->_HardSerial = serial;
+  this->_HardSerial = &serial;
   
   this->escapeNext = false;
   
@@ -115,7 +115,7 @@ uint8_t XBeeSeries1::broadcast(char* data) {
 }
 
 void XBeeSeries1::sendTo16(uint16_t addr, char* data) { 
-  if(this->readStatus== RSP_WAIT) {
+  if(this->readStatus==RSP_WAIT) {
     this->_sendTo16(addr, data);
   } else {
     this->queued16 = true;
@@ -178,12 +178,14 @@ uint8_t XBeeSeries1::_sendTo16(uint16_t addr, char* data) {
   
   chkSum = 0xFF - (Sum&0xFF);
   this->escapeAndWrite(chkSum);
-
+  
+  this->_HardSerial->flush();
+  
   return this->seq;
 }
 
 void XBeeSeries1::sendTo64(uint32_t addr_high, uint32_t addr_low, char* data) { 
-  if(this->readStatus== RSP_WAIT) {
+  if(this->readStatus==RSP_WAIT) {
     this->_sendTo64(addr_high,addr_low, data);
   } else {
     this->queued64 = true;
@@ -288,6 +290,7 @@ void XBeeSeries1::listen() {
       this->d = this->d^0x20;
       this->escapeNext = false;
     }
+    
     int i;   
     switch(this->readStatus) {
       case RSP_WAIT:
@@ -297,12 +300,10 @@ void XBeeSeries1::listen() {
         }
         break;
       case RSP_LMSB:
-
         this->lMSB = this->d;
         this->readStatus = RSP_LLSB;
         break;
       case RSP_LLSB:
-
         this->lLSB = this->d;
         
         this->packetSize = this->lMSB;
@@ -312,6 +313,7 @@ void XBeeSeries1::listen() {
         if(this->packetSize>0) {
           // Free previous buffer
           free(this->rcvBuffer);
+	  // Allocate new buffer
           this->rcvBuffer = (byte*)malloc(this->packetSize);
           this->rcvSize = 0;
         } else {
@@ -342,6 +344,7 @@ void XBeeSeries1::listen() {
         break;
     }
   } else if(this->readStatus==RSP_WAIT) {
+    // Process queued messages
     if(this->queued16) {
       this->_sendTo16(this->queuedAddr, this->queuedString16);
       this->queued16 = false;

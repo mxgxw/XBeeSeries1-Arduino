@@ -3,7 +3,7 @@
 
 XBeeSeries1 * myXBee;
 
-// 
+// Variable for pseudo-timer
 long lastMessage = 0;
 
 void setup() {
