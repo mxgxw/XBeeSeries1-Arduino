@@ -6,14 +6,8 @@ XBee Series 1 wireless module in API mode.
 The library handles all the setup and frame construction
 and allows you to send messages using less code.
 
-
-Using the library
+Important
 ===================
-
-First
-
-
-=======
 XBee Series 1 wireless module.
 
 This library attach itself to an HardwareSerial port.
@@ -25,7 +19,7 @@ not going to work.
 Installation & Examples
 ===================
 
-1. Copy TeUbico_XBeeS1 to your Arduino *"libraries"* folder. 
+1. Copy TeUbico_XBeeSeries1 to your Arduino *"libraries"* folder. 
 2. Restart Arduino.
 3. Check out the examples under *Examples* > *TeUbico_XBee*.
 4. Profit!
@@ -37,21 +31,38 @@ To use the library you need to follow this steps:
 
 1. Include the following headers:
 ```
-#include <teubico_XBeeS1.h>
+#include <teubico_XBeeSeries1.h>
 #include <teubico_utils.h>
 ```
 2. Create a global pointer of type XBeeS1:
 ```
-XBeeS1 * myXBee;
+XBeeSeries1 * myXBee;
 ```
 3. Under setup() create a new instance of XBeeS1 passing the Serial
    port pointer as the parameter of the constructor and call init().
 ```
 void setup() {
-  myXBee = new XBeeS1(&Serial);
+  myXBee = new XBeeSeries1(Serial);
   myXBee->init();
 }
 ```
+Optionally you can specify the local address here, otherwise "0" will
+be used:
+```
+void setup() {
+  myXBee = new XBeeSeries1(Serial,0xABCD);
+  myXBee->init();
+}
+```
+If you only want to received frames from 64-bit address you must set
+the local address to 0xFFFF.
+```
+void setup() {
+  myXBee = new XBeeSeries1(Serial,0xFFFF);
+  myXBee->init();
+}
+```
+
 4. Call listen() under loop().
 ```
 void loop() {
@@ -76,7 +87,7 @@ Sends data to the specified 64 bit address.
 
 
 ```
-broadcast(uint32_t addr_low, char *data);
+broadcast(char *data);
 ```
 Sends a broadcast to the local PAN. Internally is a shorcut
 to sendTo16(0xFFFF,char *data)
